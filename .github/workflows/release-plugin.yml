@@ -36,18 +36,20 @@ env:
 jobs:
   build:
     name: Build ${{ matrix.platform.name }}
-    runs-on: ubuntu-latest
-
     strategy:
       fail-fast: false
       matrix:
         platform:
           - name: linux-amd64-musl
-            docker_platform: linux/amd64
             arch: amd64
+            runner: ubuntu-latest
+            docker_platform: linux/amd64
           - name: linux-arm64-musl
-            docker_platform: linux/arm64
             arch: arm64
+            runner: ubuntu-24.04-arm
+            docker_platform: linux/arm64
+
+    runs-on: ${{ matrix.platform.runner }}
 
     steps:
       - name: Checkout plugin repo
@@ -81,10 +83,6 @@ jobs:
           echo "bifrost_core_version=${BIFROST_CORE_VERSION}" >> "$GITHUB_OUTPUT"
           echo "go_version=${GO_VERSION}" >> "$GITHUB_OUTPUT"
           echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
-
-      - name: Set up QEMU
-        if: matrix.platform.arch == 'arm64'
-        uses: docker/setup-qemu-action@v3
 
       - name: Build plugin inside matching Alpine Go container
         shell: bash
