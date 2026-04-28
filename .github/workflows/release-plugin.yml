@@ -194,7 +194,7 @@ jobs:
             Mount plugins into:
 
             ```text
-            /app/data/plugins
+            /app/plugins
             ```
 
             Use the asset that matches your Bifrost container architecture.
