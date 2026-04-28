@@ -1,0 +1,206 @@
+name: Release Bifrost plugin
+
+on:
+  workflow_dispatch:
+    inputs:
+      plugin_version:
+        description: "Plugin release version, e.g. 0.1.0"
+        required: true
+        default: "0.1.0"
+      bifrost_transport_version:
+        description: "Bifrost transport/Docker image version"
+        required: true
+        default: "1.4.24"
+      bifrost_core_version:
+        description: "Bifrost core module version"
+        required: true
+        default: "1.4.23"
+      go_version:
+        description: "Go version to build with"
+        required: true
+        default: "1.26.2"
+
+  push:
+    tags:
+      - "v*-bifrost-v*-core-v*"
+
+permissions:
+  contents: write
+
+env:
+  PLUGIN_NAME: claude-cache-control-plugin
+  GO_VERSION_DEFAULT: "1.26.2"
+  BIFROST_TRANSPORT_VERSION_DEFAULT: "1.4.24"
+  BIFROST_CORE_VERSION_DEFAULT: "1.4.23"
+
+jobs:
+  build:
+    name: Build ${{ matrix.platform.name }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        platform:
+          - name: linux-amd64-musl
+            docker_platform: linux/amd64
+            arch: amd64
+          - name: linux-arm64-musl
+            docker_platform: linux/arm64
+            arch: arm64
+
+    steps:
+      - name: Checkout plugin repo
+        uses: actions/checkout@v5
+
+      - name: Resolve versions
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PLUGIN_VERSION="${{ github.event.inputs.plugin_version }}"
+            BIFROST_TRANSPORT_VERSION="${{ github.event.inputs.bifrost_transport_version }}"
+            BIFROST_CORE_VERSION="${{ github.event.inputs.bifrost_core_version }}"
+            GO_VERSION="${{ github.event.inputs.go_version }}"
+            RELEASE_TAG="v${PLUGIN_VERSION}-bifrost-v${BIFROST_TRANSPORT_VERSION}-core-v${BIFROST_CORE_VERSION}"
+          else
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+
+            PLUGIN_VERSION="${RELEASE_TAG%%-bifrost-*}"
+            PLUGIN_VERSION="${PLUGIN_VERSION#v}"
+
+            REST="${RELEASE_TAG#*-bifrost-v}"
+            BIFROST_TRANSPORT_VERSION="${REST%%-core-v*}"
+
+            BIFROST_CORE_VERSION="${RELEASE_TAG##*-core-v}"
+            GO_VERSION="${GO_VERSION_DEFAULT}"
+          fi
+
+          echo "plugin_version=${PLUGIN_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bifrost_transport_version=${BIFROST_TRANSPORT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bifrost_core_version=${BIFROST_CORE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "go_version=${GO_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        if: matrix.platform.arch == 'arm64'
+        uses: docker/setup-qemu-action@v3
+
+      - name: Build plugin inside matching Alpine Go container
+        shell: bash
+        run: |
+          mkdir -p dist
+
+          docker run --rm \
+            --platform "${{ matrix.platform.docker_platform }}" \
+            -v "$PWD:/work" \
+            -w /work \
+            "golang:${{ steps.vars.outputs.go_version }}-alpine3.23" \
+            sh -c '
+              set -eux
+
+              apk add --no-cache gcc musl-dev sqlite-dev git file
+
+              go mod edit -go=${{ steps.vars.outputs.go_version }}
+              go get github.com/maximhq/bifrost/core@v${{ steps.vars.outputs.bifrost_core_version }}
+              go mod tidy
+
+              CGO_ENABLED=1 GOOS=linux go build \
+                -buildmode=plugin \
+                -trimpath \
+                -o dist/${{ env.PLUGIN_NAME }}-${{ matrix.platform.name }}-bifrost-v${{ steps.vars.outputs.bifrost_transport_version }}-core-v${{ steps.vars.outputs.bifrost_core_version }}.so \
+                main.go
+
+              file dist/*.so
+            '
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PLUGIN_NAME }}-${{ matrix.platform.name }}
+          path: dist/*.so
+
+  release:
+    name: Create GitHub release
+    needs: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Resolve versions
+        id: vars
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            PLUGIN_VERSION="${{ github.event.inputs.plugin_version }}"
+            BIFROST_TRANSPORT_VERSION="${{ github.event.inputs.bifrost_transport_version }}"
+            BIFROST_CORE_VERSION="${{ github.event.inputs.bifrost_core_version }}"
+            GO_VERSION="${{ github.event.inputs.go_version }}"
+            RELEASE_TAG="v${PLUGIN_VERSION}-bifrost-v${BIFROST_TRANSPORT_VERSION}-core-v${BIFROST_CORE_VERSION}"
+          else
+            RELEASE_TAG="${GITHUB_REF_NAME}"
+
+            PLUGIN_VERSION="${RELEASE_TAG%%-bifrost-*}"
+            PLUGIN_VERSION="${PLUGIN_VERSION#v}"
+
+            REST="${RELEASE_TAG#*-bifrost-v}"
+            BIFROST_TRANSPORT_VERSION="${REST%%-core-v*}"
+
+            BIFROST_CORE_VERSION="${RELEASE_TAG##*-core-v}"
+            GO_VERSION="${GO_VERSION_DEFAULT}"
+          fi
+
+          echo "plugin_version=${PLUGIN_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bifrost_transport_version=${BIFROST_TRANSPORT_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "bifrost_core_version=${BIFROST_CORE_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "go_version=${GO_VERSION}" >> "$GITHUB_OUTPUT"
+          echo "release_tag=${RELEASE_TAG}" >> "$GITHUB_OUTPUT"
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        run: |
+          cd dist
+          sha256sum *.so > checksums.txt
+          cat checksums.txt
+
+      - name: Create or update release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.vars.outputs.release_tag }}
+          name: Plugin ${{ steps.vars.outputs.plugin_version }} for Bifrost v${{ steps.vars.outputs.bifrost_transport_version }}
+          body: |
+            Claude default caching plugin for Bifrost.
+
+            Built for:
+
+            - Bifrost Docker/transport version: v${{ steps.vars.outputs.bifrost_transport_version }}
+            - Bifrost core module version: v${{ steps.vars.outputs.bifrost_core_version }}
+            - Go version: ${{ steps.vars.outputs.go_version }}
+            - libc target: Alpine/musl
+            - Architectures:
+              - linux/amd64
+              - linux/arm64
+
+            Matching Bifrost image:
+
+            ```text
+            ghcr.io/jinnotgin/bifrost-dynamic-alpine:v${{ steps.vars.outputs.bifrost_transport_version }}
+            ```
+
+            Mount plugins into:
+
+            ```text
+            /app/data/plugins
+            ```
+
+            Use the asset that matches your Bifrost container architecture.
+          files: |
+            dist/*.so
+            dist/checksums.txt
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
