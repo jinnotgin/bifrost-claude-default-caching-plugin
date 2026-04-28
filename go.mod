@@ -1,8 +1,8 @@
 module github.com/jinnotgin/bifrost-claude-default-caching-plugin
 
-go 1.26.1
+go 1.26.2
 
-require github.com/maximhq/bifrost/core v1.4.22
+require github.com/maximhq/bifrost/core v1.4.23
 
 require (
 	github.com/andybalholm/brotli v1.2.0 // indirect
@@ -12,6 +12,7 @@ require (
 	github.com/bytedance/sonic v1.15.0 // indirect
 	github.com/bytedance/sonic/loader v0.5.0 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/google/go-cmp v0.7.0 // indirect
 	github.com/google/uuid v1.6.0 // indirect
 	github.com/invopop/jsonschema v0.13.0 // indirect
 	github.com/klauspost/compress v1.18.2 // indirect
@@ -32,5 +33,6 @@ require (
 	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect
 	golang.org/x/text v0.35.0 // indirect
+	gopkg.in/check.v1 v1.0.0-20201130134442-10cb98267c6c // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
