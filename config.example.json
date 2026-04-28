@@ -1,0 +1,21 @@
+{
+  "plugins": [
+    {
+      "enabled": true,
+      "name": "claude-cache-control-plugin",
+      "path": "/absolute/path/to/claude-cache-control-plugin.so",
+      "version": 1,
+      "config": {
+        "enabled": true,
+        "providers": ["anthropic", "vertex"],
+        "model_substrings": ["claude", "anthropic/claude", "vertex/claude"],
+        "cache_control_type": "ephemeral",
+        "ttl": "1h",
+        "skip_if_request_has_cache": true,
+        "skip_if_raw_request_body": true,
+        "strip_scope_on_vertex": true,
+        "debug": true
+      }
+    }
+  ]
+}
