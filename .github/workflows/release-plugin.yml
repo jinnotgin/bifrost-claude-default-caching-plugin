@@ -28,7 +28,7 @@ permissions:
   contents: write
 
 env:
-  PLUGIN_NAME: claude-cache-control-plugin
+  PLUGIN_NAME: claude-default-caching
   GO_VERSION_DEFAULT: "1.26.2"
   BIFROST_TRANSPORT_VERSION_DEFAULT: "1.4.24"
   BIFROST_CORE_VERSION_DEFAULT: "1.4.23"
