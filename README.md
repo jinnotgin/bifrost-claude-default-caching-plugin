@@ -2,13 +2,7 @@
 
 This Bifrost plugin makes OpenAI-compatible Claude traffic more cache-friendly by adding Claude cache control during Bifrost routing.
 
-[Bifrost](https://github.com/maximhq/bifrost) is a high-performance AI gateway that exposes a single OpenAI-compatible API across providers such as Anthropic, OpenAI, AWS Bedrock, and Google Vertex. This plugin is for Bifrost deployments where coding agents call OpenAI-compatible endpoints like `/v1/chat/completions` or `/v1/responses`, while Bifrost routes those requests to Claude through Anthropic-family providers.
-
-## What Is Bifrost
-
-[Bifrost](https://github.com/maximhq/bifrost) is an AI gateway from Maxim that sits between your applications or agents and upstream model providers. Instead of wiring each client directly to Anthropic, OpenAI, Vertex, Bedrock, or another provider, you send requests to Bifrost through a unified API and let Bifrost handle provider routing, configuration, retries, fallback behavior, observability, and plugins.
-
-For agents and tools that already speak OpenAI-compatible APIs, Bifrost can act as a drop-in gateway while still routing requests to non-OpenAI providers. That makes it a useful place to apply provider-specific behavior centrally without asking every agent to emit provider-native request fields.
+[Bifrost](https://github.com/maximhq/bifrost) is a high-performance AI gateway that exposes a single OpenAI-compatible API across providers such as Anthropic, OpenAI, AWS Bedrock, and Google Vertex. This plugin is for Bifrost deployments where coding agents call OpenAI-compatible endpoints like `/v1/chat/completions` or `/v1/responses`, while Bifrost routes those requests to Claude through Anthropic-family providers. That makes Bifrost a useful place to add Claude-specific cache control centrally.
 
 ## Problem Statement
 
